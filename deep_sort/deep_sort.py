@@ -55,7 +55,15 @@ class DeepSort(object):
                 x1, y1, x2, y2 = self._tlwh_to_xyxy(box)
             track_id = track.track_id
             class_id = track.class_id
-            outputs.append(np.array([x1, y1, x2, y2, track_id, class_id], dtype=np.int))
+            if x1 > x2:
+                xc = int(x1/2)
+            else:
+                xc = int(x2/2)
+            if y1 > y2:
+                yc = int(y1/2)
+            else:
+                yc = int(y2/2)
+            outputs.append(np.array([x1, y1, x2, y2, track_id, class_id, xc, yc], dtype=np.int))
         if len(outputs) > 0:
             outputs = np.stack(outputs, axis=0)
         return outputs
