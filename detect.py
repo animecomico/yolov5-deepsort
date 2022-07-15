@@ -15,12 +15,14 @@ from utils.general import (LOGGER, non_max_suppression, scale_coords,
                            check_imshow, xyxy2xywh, increment_path)
 from utils.plots import Annotator, colors
 from utils.torch_utils import select_device, time_sync
+import numpy as np
+from sklearn.neighbors import KDTree
 
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "8"
+os.environ["OPENBLAS_NUM_THREADS"] = "8"
+os.environ["MKL_NUM_THREADS"] = "8"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "8"
+os.environ["NUMEXPR_NUM_THREADS"] = "8"
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # yolov5 deepsort root directory
@@ -141,17 +143,46 @@ def detect(opt):
                 t5 = time_sync()
                 dt[3] += t5 - t4
 
+                clients_pos = []
+                mo_pos = []
+                id_client = []
+                id_mo = []
+
                 # draw boxes for visualization
                 if len(outputs) > 0:
                     for j, (output, conf) in enumerate(zip(outputs, confs)):
                         bboxes = output[0:4]
                         id = output[4]
                         cls = output[5]
-
+                        centroid = output[6:]
                         c = int(cls)  # integer class
+                        if c == 2:
+                            clients_pos.append(centroid)
+                            id_client.append(id)
+                        elif c == 0:
+                            mo_pos.append(centroid)
+                            id_mo.append(id)
+
                         label = f'{id} {names[c]} {conf:.2f}'
                         annotator.box_label(bboxes, label, color=colors(c, True))
 
+                    np_c = np.vstack(clients_pos)
+                    np_mo = np.vstack(mo_pos)
+                    tree = KDTree(np_mo)
+                    nearest_dist, nearest_ind = tree.query(np_c, k=2)
+                    near_id = nearest_ind[:, 0]
+                    near_dist = nearest_dist[:, 0]
+
+                    # print(near_dist)  # drop id; assumes sorted -> see args!
+                    # print(near_id)  # drop id
+                    # print(id_client)
+                    # print(id_mo)
+                    num_c = len(id_client)
+                    for i in range(0, num_c):
+                        client_id = id_client[i]
+                        nearid = near_id[i]
+                        id_mos = id_mo[nearid]
+                        print('Client track id {} on MO track id {}'.format(client_id, id_mos))
                 LOGGER.info(f'{s}Done. YOLO:({t3 - t2:.3f}s), DeepSort:({t5 - t4:.3f}s)')
 
             else:
@@ -179,7 +210,10 @@ def detect(opt):
                         fps, w, h = 30, im0.shape[1], im0.shape[0]
 
                     vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
-                vid_writer.write(im0)
+                try:
+                    vid_writer.write(im0)
+                except Exception as tre:
+                    print(repr(tre))
 
     # Print results
     t = tuple(x / seen * 1E3 for x in dt)  # speeds per image
