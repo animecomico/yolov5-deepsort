@@ -18,6 +18,9 @@ from utils.torch_utils import select_device, time_sync
 import numpy as np
 from sklearn.neighbors import KDTree
 
+from scipy.spatial import distance
+import numpy as np
+
 os.environ["OMP_NUM_THREADS"] = "8"
 os.environ["OPENBLAS_NUM_THREADS"] = "8"
 os.environ["MKL_NUM_THREADS"] = "8"
@@ -122,6 +125,27 @@ def detect(opt):
             s += '%gx%g ' % img.shape[2:]  # print string
 
             annotator = Annotator(im0, line_width=2, pil=not ascii)
+
+            det2 = det.clone().detach()
+            centroid = dict()
+            for n_det, detect in enumerate(det):
+                centroid[n_det] = [int((detect[2]+detect[0])/2), int((detect[3]+detect[1])/2)]
+                #im0 = cv2.circle(im0, centroid[n_det], 5, (0, 0, 255), 5)
+        
+                for cent in range(n_det):
+                    #print("-------",cent,n_det)
+                    dist=distance.euclidean(centroid[cent],centroid[n_det])
+                    if dist < 50 and (det[n_det,-1] + det[cent,-1] == 1):
+                        #print("obj", det[n_det,-1],det[cent,-1], dist)
+                        if det[n_det,-1] == 1:
+                            det2[n_det] = 10
+                        else:
+                            det2[cent] = 10
+                    #print(dist)
+                    #print(cent, centroid[cent])
+
+
+            det = det2[det2[:,-1]!=10]
 
             if det is not None and len(det):
                 # Rescale boxes from img_size to im0 size
