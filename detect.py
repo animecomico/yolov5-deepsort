@@ -19,7 +19,8 @@ import numpy as np
 from sklearn.neighbors import KDTree
 
 from scipy.spatial import distance
-import numpy as np
+import pandas as pd
+from datetime import datetime
 
 os.environ["OMP_NUM_THREADS"] = "8"
 os.environ["OPENBLAS_NUM_THREADS"] = "8"
@@ -86,7 +87,14 @@ def detect(opt):
     dt, seen = [0.0, 0.0, 0.0, 0.0], 0
 
     contmax = limit_frames
+
+    contframe = 0
+    df_client = pd.DataFrame(columns=['timestamp', 'client', 'frame'])
+    cont_detect_c = 0
+    last_alert = None
+
     for frame_idx, (path, img, im0s, vid_cap, s) in enumerate(dataset):
+        contframe = contframe + 1
         if contmax > -1:
             if contmax <= 0:
                 break
@@ -196,8 +204,12 @@ def detect(opt):
                             clients_pos.append(centroid)
                             id_client.append(id)
                         elif c == 0:
-                            mo_pos.append(centroid)
-                            id_mo.append(id)
+                            # For now ignore this
+                            # mo_pos.append(centroid)
+                            # id_mo.append(id)
+                            continue
+                        else:
+                            continue
 
                         label = f'{id} {names[c]} {conf:.2f}'
                         annotator.box_label(bboxes, label, color=colors(c, True))
@@ -232,7 +244,40 @@ def detect(opt):
                             id_mos = id_mo[nearid]
                             print('Client track id {} on MO track id {}'.format(client_id, id_mos))
                     elif enable_client_bank:
+                        if not last_alert is None:
+                            annotator.put_alarm(alarm=last_alert)
                         print('Client Bank Started...')
+                        back_prog = 4
+                        time_stamp_c = datetime.now()
+                        cont_detect_c = cont_detect_c + 1
+                        for idc in id_client:
+                            df_client = df_client.append({'client': idc, 'frame': contframe, 'timestamp': time_stamp_c},
+                                           ignore_index=True)
+                        if cont_detect_c >= back_prog:
+                            print('Start Magic')
+                        #     Check clients number
+                            num_clients = df_client[df_client.duplicated('timestamp', keep=False)]
+                            row_c, col_c = num_clients.shape
+                            if row_c > 1:
+                                keys = num_clients.index
+                                for i in keys:
+                                    time_st = num_clients.loc[i].at['timestamp']
+                                    delta_t = time_stamp_c - time_st
+                                    days, seconds = delta_t.days, delta_t.seconds
+                                    if days == 0 and (2 <= seconds <= 10):
+                                        df_client = None
+                                        df_client = pd.DataFrame(columns=['timestamp', 'client', 'frame'])
+                                        cont_detect_c = 0
+                                        print('Alert Two Clients')
+                                        # annotator.put_alarm(alarm='Alert Two Clients')
+                                        last_alert = 'Alert Two Clients'
+                                        break
+                            else:
+                                print('Only One Client')
+                                # annotator.put_alarm(alarm='Only One Client')
+                                last_alert = 'Only One Client'
+                        else:
+                            print('Magic not start yet')
                     else:
                         print('Only Tracking :)')
                 LOGGER.info(f'{s}Done. YOLO:({t3 - t2:.3f}s), DeepSort:({t5 - t4:.3f}s)')
