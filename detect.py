@@ -204,12 +204,16 @@ def detect(opt):
 
                     enable_client_restaurant = True
                     enable_client_bank = False
-                    np_c = np.vstack(clients_pos)
                     try:
                         np_mo = np.vstack(mo_pos)
                     except Exception as ero:
                         enable_client_restaurant = False
                         enable_client_bank = True
+                    try:
+                        np_c = np.vstack(clients_pos)
+                    except Exception as loi:
+                        enable_client_restaurant = False
+                        enable_client_bank = False
                     if enable_client_restaurant:
                         print('Client Restaurant Started...')
                         tree = KDTree(np_mo)
