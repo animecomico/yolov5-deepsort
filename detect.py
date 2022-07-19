@@ -126,26 +126,38 @@ def detect(opt):
 
             annotator = Annotator(im0, line_width=2, pil=not ascii)
 
+            # Filter y Region using Centroid Calcultaions
+            det_temp = det.clone().detach()
             det2 = det.clone().detach()
+            xmin_r = 400
+            ymin_r = 300
+            xmax_r = 800
+            ymax_r = 800
+            # Required reescale
+            det_temp[:, :4] = scale_coords(img.shape[2:], det_temp[:, :4], im0.shape).round()
+            xywhs3 = xyxy2xywh(det_temp[:, 0:4])
             centroid = dict()
-            for n_det, detect in enumerate(det):
-                centroid[n_det] = [int((detect[2]+detect[0])/2), int((detect[3]+detect[1])/2)]
-                #im0 = cv2.circle(im0, centroid[n_det], 5, (0, 0, 255), 5)
-        
-                for cent in range(n_det):
-                    #print("-------",cent,n_det)
-                    dist=distance.euclidean(centroid[cent],centroid[n_det])
-                    if dist < 50 and (det[n_det,-1] + det[cent,-1] == 1):
-                        #print("obj", det[n_det,-1],det[cent,-1], dist)
-                        if det[n_det,-1] == 1:
-                            det2[n_det] = 10
-                        else:
-                            det2[cent] = 10
-                    #print(dist)
-                    #print(cent, centroid[cent])
+            for n_det, detect in enumerate(xywhs3):
+                centroid[n_det] = [int((detect[0] + detect[2]) / 2), int((detect[1] + detect[3]) / 2)]
+                px = centroid[n_det][0]
+                py = centroid[n_det][1]
+                valid_on_tegion = False
+                if xmin_r <= px <= xmax_r:
+                    if ymin_r <= py <= ymax_r:
+                        valid_on_tegion = True
+                if not valid_on_tegion:
+                    det2[n_det] = 10
+                else:
+                    # David centroid Filter Join
+                    for cent in range(n_det):
+                        dist = distance.euclidean(centroid[cent], centroid[n_det])
+                        if dist < 50 and (det[n_det, -1] + det[cent, -1] == 1):
+                            if det[n_det, -1] == 1:
+                                det2[n_det] = 10
+                            else:
+                                det2[cent] = 10
 
-
-            det = det2[det2[:,-1]!=10]
+            det = det2[det2[:, -1] != 10]
 
             if det is not None and len(det):
                 # Rescale boxes from img_size to im0 size
@@ -190,23 +202,35 @@ def detect(opt):
                         label = f'{id} {names[c]} {conf:.2f}'
                         annotator.box_label(bboxes, label, color=colors(c, True))
 
+                    enable_client_restaurant = True
+                    enable_client_bank = False
                     np_c = np.vstack(clients_pos)
-                    np_mo = np.vstack(mo_pos)
-                    tree = KDTree(np_mo)
-                    nearest_dist, nearest_ind = tree.query(np_c, k=2)
-                    near_id = nearest_ind[:, 0]
-                    near_dist = nearest_dist[:, 0]
+                    try:
+                        np_mo = np.vstack(mo_pos)
+                    except Exception as ero:
+                        enable_client_restaurant = False
+                        enable_client_bank = True
+                    if enable_client_restaurant:
+                        print('Client Restaurant Started...')
+                        tree = KDTree(np_mo)
+                        nearest_dist, nearest_ind = tree.query(np_c, k=2)
+                        near_id = nearest_ind[:, 0]
+                        near_dist = nearest_dist[:, 0]
 
-                    # print(near_dist)  # drop id; assumes sorted -> see args!
-                    # print(near_id)  # drop id
-                    # print(id_client)
-                    # print(id_mo)
-                    num_c = len(id_client)
-                    for i in range(0, num_c):
-                        client_id = id_client[i]
-                        nearid = near_id[i]
-                        id_mos = id_mo[nearid]
-                        print('Client track id {} on MO track id {}'.format(client_id, id_mos))
+                        # print(near_dist)  # drop id; assumes sorted -> see args!
+                        # print(near_id)  # drop id
+                        # print(id_client)
+                        # print(id_mo)
+                        num_c = len(id_client)
+                        for i in range(0, num_c):
+                            client_id = id_client[i]
+                            nearid = near_id[i]
+                            id_mos = id_mo[nearid]
+                            print('Client track id {} on MO track id {}'.format(client_id, id_mos))
+                    elif enable_client_bank:
+                        print('Client Bank Started...')
+                    else:
+                        print('Only Tracking :)')
                 LOGGER.info(f'{s}Done. YOLO:({t3 - t2:.3f}s), DeepSort:({t5 - t4:.3f}s)')
 
             else:
@@ -252,7 +276,7 @@ if __name__ == '__main__':
     parser.add_argument('--source', type=str, default='0', help='source')  # file/folder, 0 for webcam
     parser.add_argument('--output', type=str, default='inference/output', help='output folder')  # output folder
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[640], help='inference size h,w')
-    parser.add_argument('--conf-thres', type=float, default=0.3, help='object confidence threshold')
+    parser.add_argument('--conf-thres', type=float, default=0.4, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.5, help='IOU threshold for NMS')
     parser.add_argument('--fourcc', type=str, default='mp4v', help='output video codec (verify ffmpeg support)')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
