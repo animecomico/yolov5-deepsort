@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from tarfile import PAX_FORMAT
 
 import cv2
 import torch
@@ -92,8 +93,14 @@ def detect(opt):
     df_client = pd.DataFrame(columns=['timestamp', 'client', 'frame'])
     cont_detect_c = 0
     last_alert = None
+    time1 = datetime.now()
+    time_client = dict()
 
     for frame_idx, (path, img, im0s, vid_cap, s) in enumerate(dataset):
+        spf = (datetime.now()-time1).total_seconds()
+        time1 = datetime.now()
+        print("SPF:", spf)
+
         contframe = contframe + 1
         if contmax > -1:
             if contmax <= 0:
@@ -137,20 +144,22 @@ def detect(opt):
             # Filter y Region using Centroid Calcultaions
             det_temp = det.clone().detach()
             det2 = det.clone().detach()
-            xmin_r = 400
-            ymin_r = 300
-            xmax_r = 800
+            xmin_r = 250
+            ymin_r = 250
+            xmax_r = 700
             ymax_r = 800
             # Required reescale
             det_temp[:, :4] = scale_coords(img.shape[2:], det_temp[:, :4], im0.shape).round()
             xywhs3 = xyxy2xywh(det_temp[:, 0:4])
             centroid = dict()
+            
             for n_det, detect in enumerate(xywhs3):
                 centroid[n_det] = [int((detect[0] + detect[2]) / 2), int((detect[1] + detect[3]) / 2)]
                 px = centroid[n_det][0]
                 py = centroid[n_det][1]
                 valid_on_tegion = False
-                if xmin_r <= px <= xmax_r:
+                
+                if xmin_r <= px <= xmax_r and detect[0] > 5:
                     if ymin_r <= py <= ymax_r:
                         valid_on_tegion = True
                 if not valid_on_tegion:
@@ -158,6 +167,7 @@ def detect(opt):
                 else:
                     # David centroid Filter Join
                     for cent in range(n_det):
+                        
                         dist = distance.euclidean(centroid[cent], centroid[n_det])
                         if dist < 50 and (det[n_det, -1] + det[cent, -1] == 1):
                             if det[n_det, -1] == 1:
@@ -191,7 +201,7 @@ def detect(opt):
                 mo_pos = []
                 id_client = []
                 id_mo = []
-
+                
                 # draw boxes for visualization
                 if len(outputs) > 0:
                     for j, (output, conf) in enumerate(zip(outputs, confs)):
@@ -200,9 +210,16 @@ def detect(opt):
                         cls = output[5]
                         centroid = output[6:]
                         c = int(cls)  # integer class
-                        if c == 2:
+                        if c == 0:
+                            print(id, centroid)
                             clients_pos.append(centroid)
                             id_client.append(id)
+                            if id in time_client:
+                                time_client[id] = time_client[id] + 1*spf
+                            else:
+                                time_client[id] = 0
+   
+                            print(time_client, contframe)
                         elif c == 0:
                             # For now ignore this
                             # mo_pos.append(centroid)
@@ -245,14 +262,21 @@ def detect(opt):
                             print('Client track id {} on MO track id {}'.format(client_id, id_mos))
                     elif enable_client_bank:
                         if not last_alert is None:
-                            annotator.put_alarm(alarm=last_alert)
+                            annotator.put_alarm(alarm=last_alert, alarm_on=alarm_on)
                         print('Client Bank Started...')
                         back_prog = 4
                         time_stamp_c = datetime.now()
                         cont_detect_c = cont_detect_c + 1
+                        
+                        
+                        df_client2 = pd.DataFrame(columns=['timestamp', 'client', 'frame'])
                         for idc in id_client:
+                            
                             df_client = df_client.append({'client': idc, 'frame': contframe, 'timestamp': time_stamp_c},
                                            ignore_index=True)
+                            df_client2 = df_client2.append({'client': idc, 'frame': round(time_client[idc],1), 'timestamp': time_stamp_c},
+                                           ignore_index=True)
+                            annotator.print_staytime(df_data=df_client2)
                         if cont_detect_c >= back_prog:
                             print('Start Magic')
                         #     Check clients number
@@ -268,14 +292,16 @@ def detect(opt):
                                         df_client = None
                                         df_client = pd.DataFrame(columns=['timestamp', 'client', 'frame'])
                                         cont_detect_c = 0
-                                        print('Alert Two Clients')
+                                        print('Alert Clients')
                                         # annotator.put_alarm(alarm='Alert Two Clients')
-                                        last_alert = 'Alert Two Clients'
+                                        last_alert = 'Alert Clients'
+                                        alarm_on = True
                                         break
                             else:
                                 print('Only One Client')
                                 # annotator.put_alarm(alarm='Only One Client')
                                 last_alert = 'Only One Client'
+                                alarm_on = False
                         else:
                             print('Magic not start yet')
                     else:
@@ -316,6 +342,8 @@ def detect(opt):
     t = tuple(x / seen * 1E3 for x in dt)  # speeds per image
     LOGGER.info(f'Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS, %.1fms deep sort update \
         per image at shape {(1, 3, *imgsz)}' % t)
+    
+
 
 
 if __name__ == '__main__':
