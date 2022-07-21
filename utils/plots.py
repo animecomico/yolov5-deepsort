@@ -131,12 +131,23 @@ class Annotator:
                 cv2.putText(self.im, label, (p1[0], p1[1] - 2 if outside else p1[1] + h + 2), 0, self.lw / 3, txt_color,
                             thickness=tf, lineType=cv2.LINE_AA)
 
-    def put_alarm(self, alarm, color=(128, 128, 128), txt_color=(0, 0, 0)):
+    def put_alarm(self, alarm, alarm_on = False,color=(0, 128, 0), txt_color=(255, 255, 255)):
         tf = max(self.lw - 1, 1)
-
-        cv2.putText(self.im, alarm, (10, 80), 0, self.lw / 3,
+        if alarm_on:
+            color = (0, 0, 128)
+        cv2.rectangle(self.im, (5, 50), (250, 100), color, -1, cv2.LINE_AA)
+        cv2.putText(self.im, alarm, (10, 80), 5, self.lw / 2,
                     txt_color,
                     thickness=2, lineType=cv2.LINE_AA)
+
+    def print_staytime(self,df_data,color=(255,255,255),txt_color=(0,0,0)):
+        cv2.rectangle(self.im, (5, 200), (250, 1000), color, -1, cv2.LINE_AA)
+        cv2.putText(self.im, "ID_Client  Time", (10, 250), 5, self.lw/2,txt_color,thickness=1, lineType=cv2.LINE_AA)
+        for i in range(len(df_data)):
+            cv2.putText(self.im, str(df_data.loc[i, "client"]), (30, 300 + i*45), 5, self.lw,txt_color,thickness=1, lineType=cv2.LINE_AA)
+            cv2.putText(self.im, str(df_data.loc[i, "frame"]), (140, 300+ i*45), 5, self.lw/1.2 ,txt_color,thickness=1, lineType=cv2.LINE_AA)
+            
+
 
     def rectangle(self, xy, fill=None, outline=None, width=1):
         # Add rectangle to image (PIL-only)
