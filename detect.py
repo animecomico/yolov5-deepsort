@@ -153,7 +153,12 @@ def detect(opt):
             det_temp[:, :4] = scale_coords(img.shape[2:], det_temp[:, :4], im0.shape).round()
             xywhs3 = xyxy2xywh(det_temp[:, 0:4])
             centroid = dict()
-            
+            if environment == 'ATM':
+                class_filter = 0
+            elif environment == 'restaurant':
+                class_filter = 1
+            else:
+                class_filter = 1
             for n_det, detect in enumerate(xywhs3):
                 centroid[n_det] = [int((detect[0] + detect[2]) / 2), int((detect[1] + detect[3]) / 2)]
                 px = centroid[n_det][0]
@@ -170,8 +175,8 @@ def detect(opt):
                     for cent in range(n_det):
                         
                         dist = distance.euclidean(centroid[cent], centroid[n_det])
-                        if dist < 50 and (det[n_det, -1] + det[cent, -1] == 1):
-                            if det[n_det, -1] == 1:
+                        if dist < 130 and (det[n_det, -1] + det[cent, -1] == class_filter):
+                            if det[n_det, -1] == class_filter:
                                 det2[n_det] = 10
                             else:
                                 det2[cent] = 10
@@ -304,6 +309,9 @@ def detect(opt):
                         back_prog = 4
                         time_stamp_c = datetime.now()
                         cont_detect_c = cont_detect_c + 1
+
+                        if len(lappc_pos) > 0:
+                            annotator.put_alarm2(alarm='Laptop Alert', alarm_on=True)
                         
                         
                         df_client2 = pd.DataFrame(columns=['timestamp', 'client', 'frame'])
