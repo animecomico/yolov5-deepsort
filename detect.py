@@ -224,10 +224,10 @@ def detect(opt):
                             class_mv = 1
                             class_pc_laptop = -1
                         elif environment == 'ATM':
-                            class_client = 0
+                            class_client = 1
                             class_mo = -1
                             class_mv = -1
-                            class_pc_laptop = 1
+                            class_pc_laptop = 0
                         else:
                             print('Not found any environment use default restaurant')
                             class_client = 2
