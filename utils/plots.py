@@ -140,6 +140,15 @@ class Annotator:
                     txt_color,
                     thickness=2, lineType=cv2.LINE_AA)
 
+    def put_alarm2(self, alarm, alarm_on = False,color=(0, 128, 0), txt_color=(255, 255, 255)):
+        tf = max(self.lw - 1, 1)
+        if alarm_on:
+            color = (0, 0, 128)
+        cv2.rectangle(self.im, (5, 100), (250, 150), color, -1, cv2.LINE_AA)
+        cv2.putText(self.im, alarm, (10, 130), 5, self.lw / 2,
+                    txt_color,
+                    thickness=2, lineType=cv2.LINE_AA)
+
     def print_staytime(self,df_data,color=(255,255,255),txt_color=(0,0,0)):
         cv2.rectangle(self.im, (5, 200), (250, 1000), color, -1, cv2.LINE_AA)
         cv2.putText(self.im, "ID_Client  Time", (10, 250), 5, self.lw/2,txt_color,thickness=1, lineType=cv2.LINE_AA)
