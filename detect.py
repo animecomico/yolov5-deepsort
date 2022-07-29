@@ -94,6 +94,7 @@ def detect(opt):
     df_client = pd.DataFrame(columns=['timestamp', 'client', 'frame'])
     cont_detect_c = 0
     last_alert = None
+    last_alert_laptop = None
     time1 = datetime.now()
     time_client = dict()
 
@@ -305,13 +306,13 @@ def detect(opt):
                     elif enable_client_bank:
                         if not last_alert is None:
                             annotator.put_alarm(alarm=last_alert, alarm_on=alarm_on)
+                        if not last_alert_laptop is None:
+                            annotator.put_alarm2(alarm=last_alert_laptop, alarm_on=alarm_on_laptop)
                         print('Client Bank Started...')
                         back_prog = 4
                         time_stamp_c = datetime.now()
                         cont_detect_c = cont_detect_c + 1
 
-                        if len(lappc_pos) > 0:
-                            annotator.put_alarm2(alarm='Laptop Alert', alarm_on=True)
                         
                         
                         df_client2 = pd.DataFrame(columns=['timestamp', 'client', 'frame'])
@@ -341,12 +342,24 @@ def detect(opt):
                                         # annotator.put_alarm(alarm='Alert Two Clients')
                                         last_alert = 'Alert Clients'
                                         alarm_on = True
+                                        if len(lappc_pos) > 0:
+                                            alarm_on_laptop = True
+                                            last_alert_laptop = 'Laptop Alert'
+                                        else:
+                                            last_alert_laptop = None
+                                            alarm_on_laptop = False
                                         break
                             else:
                                 print('Only One Client')
                                 # annotator.put_alarm(alarm='Only One Client')
                                 last_alert = 'Only One Client'
                                 alarm_on = False
+                                if len(lappc_pos) > 0:
+                                    alarm_on_laptop = True
+                                    last_alert_laptop = 'Alert laptop'
+                                else:
+                                    alarm_on_laptop = False
+                                    last_alert_laptop = None
                         else:
                             print('Magic not start yet')
                     else:
