@@ -37,9 +37,10 @@ ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 
 def detect(opt):
-    out, source, yolo_model, deep_sort_model, show_vid, save_vid, save_txt, imgsz, evaluate, half, project, name, exist_ok, limit_frames = \
+    out, source, yolo_model, deep_sort_model, show_vid, save_vid, save_txt, imgsz, evaluate, half, project, name, exist_ok, limit_frames, environment = \
         opt.output, opt.source, opt.yolo_model, opt.deep_sort_model, opt.show_vid, opt.save_vid, \
-        opt.save_txt, opt.imgsz, opt.evaluate, opt.half, opt.project, opt.name, opt.exist_ok, opt.limit_frames
+        opt.save_txt, opt.imgsz, opt.evaluate, opt.half, opt.project, opt.name, opt.exist_ok, opt.limit_frames, \
+        opt.environment
     webcam = source == '0' or source.startswith(
         'rtsp') or source.startswith('http') or source.endswith('.txt')
 
@@ -199,9 +200,16 @@ def detect(opt):
 
                 clients_pos = []
                 mo_pos = []
+                mv_pos = []
                 id_client = []
                 id_mo = []
-                
+                lappc_pos = []
+                # Class of models Variables
+                class_client = -1
+                class_mo = -1
+                class_mv = -1
+                class_pc_laptop = -1
+                #
                 # draw boxes for visualization
                 if len(outputs) > 0:
                     for j, (output, conf) in enumerate(zip(outputs, confs)):
@@ -210,7 +218,23 @@ def detect(opt):
                         cls = output[5]
                         centroid = output[6:]
                         c = int(cls)  # integer class
-                        if c == 0:
+                        if environment == 'restaurant':
+                            class_client = 2
+                            class_mo = 0
+                            class_mv = 1
+                            class_pc_laptop = -1
+                        elif environment == 'ATM':
+                            class_client = 0
+                            class_mo = -1
+                            class_mv = -1
+                            class_pc_laptop = 1
+                        else:
+                            print('Not found any environment use default restaurant')
+                            class_client = 2
+                            class_mo = 0
+                            class_mv = 1
+                            class_pc_laptop = -1
+                        if c == class_client:
                             print(id, centroid)
                             clients_pos.append(centroid)
                             id_client.append(id)
@@ -218,26 +242,39 @@ def detect(opt):
                                 time_client[id] = time_client[id] + 1*spf
                             else:
                                 time_client[id] = 0
-   
+
                             print(time_client, contframe)
-                        elif c == 0:
+                        elif c == class_mo:
                             # For now ignore this
-                            # mo_pos.append(centroid)
-                            # id_mo.append(id)
-                            continue
+                            mo_pos.append(centroid)
+                            id_mo.append(id)
+                        elif c == class_mv:
+                            mv_pos.append(centroid)
+                        elif c == class_pc_laptop:
+                            lappc_pos.append(centroid)
                         else:
                             continue
 
                         label = f'{id} {names[c]} {conf:.2f}'
                         annotator.box_label(bboxes, label, color=colors(c, True))
-
-                    enable_client_restaurant = True
-                    enable_client_bank = False
-                    try:
-                        np_mo = np.vstack(mo_pos)
-                    except Exception as ero:
+                    if environment == 'restaurant':
+                        enable_client_restaurant = True
+                        enable_client_bank = False
+                        try:
+                            np_mo = np.vstack(mo_pos)
+                        except Exception as ero:
+                            print('Not Found any class {}'.format(class_mo))
+                    elif environment == 'ATM':
                         enable_client_restaurant = False
                         enable_client_bank = True
+                    else:
+                        print('Use default environment restaurant')
+                        enable_client_restaurant = True
+                        enable_client_bank = False
+                        try:
+                            np_mo = np.vstack(mo_pos)
+                        except Exception as ero:
+                            print('Not Found any class {}'.format(class_mo))
                     try:
                         np_c = np.vstack(clients_pos)
                     except Exception as loi:
@@ -373,6 +410,7 @@ if __name__ == '__main__':
     parser.add_argument('--name', default='exp', help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--limit-frames', type=int, default=-1, help='Number frames limit, -1 no limit')
+    parser.add_argument('--environment', type=str, default='restaurant')
     opt = parser.parse_args()
     opt.imgsz *= 2 if len(opt.imgsz) == 1 else 1  # expand
 
