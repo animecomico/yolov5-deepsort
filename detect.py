@@ -92,6 +92,7 @@ def detect(opt):
 
     contframe = 0
     df_client = pd.DataFrame(columns=['timestamp', 'client', 'frame'])
+    df_laptop = pd.DataFrame(columns=['timestamp', 'laptop', 'frame'])
     cont_detect_c = 0
     last_alert = None
     last_alert_laptop = None
@@ -210,6 +211,7 @@ def detect(opt):
                 id_client = []
                 id_mo = []
                 lappc_pos = []
+                id_lappc = []
                 # Class of models Variables
                 class_client = -1
                 class_mo = -1
@@ -258,6 +260,7 @@ def detect(opt):
                             mv_pos.append(centroid)
                         elif c == class_pc_laptop:
                             lappc_pos.append(centroid)
+                            id_lappc.append(id)
                         else:
                             continue
 
@@ -323,6 +326,8 @@ def detect(opt):
                             df_client2 = df_client2.append({'client': idc, 'frame': round(time_client[idc],1), 'timestamp': time_stamp_c},
                                            ignore_index=True)
                             annotator.print_staytime(df_data=df_client2)
+                        for idl in id_lappc:
+                            df_laptop = df_laptop.append({'laptop': idl, 'frame': contframe, 'timestamp': time_stamp_c}, ignore_index=True)
                         if cont_detect_c >= back_prog:
                             print('Start Magic')
                         #     Check clients number
@@ -342,24 +347,28 @@ def detect(opt):
                                         # annotator.put_alarm(alarm='Alert Two Clients')
                                         last_alert = 'Alert Clients'
                                         alarm_on = True
-                                        if len(lappc_pos) > 0:
-                                            alarm_on_laptop = True
-                                            last_alert_laptop = 'Laptop Alert'
-                                        else:
-                                            last_alert_laptop = None
-                                            alarm_on_laptop = False
                                         break
                             else:
                                 print('Only One Client')
                                 # annotator.put_alarm(alarm='Only One Client')
                                 last_alert = 'Only One Client'
                                 alarm_on = False
-                                if len(lappc_pos) > 0:
-                                    alarm_on_laptop = True
-                                    last_alert_laptop = 'Alert laptop'
-                                else:
-                                    alarm_on_laptop = False
-                                    last_alert_laptop = None
+                            if len(lappc_pos) > 0:
+                                keys_p = df_laptop.index
+                                for i in keys_p:
+                                    time_st = df_laptop.loc[i].at['timestamp']
+                                    delta_t = time_stamp_c - time_st
+                                    days, seconds = delta_t.days, delta_t.seconds
+                                    if days == 0 and (1 <= seconds <= 10):
+                                        df_laptop = None
+                                        df_laptop = pd.DataFrame(columns=['timestamp', 'laptop', 'frame'])
+                                        cont_detect_c = 0
+                                        alarm_on_laptop = True
+                                        last_alert_laptop = 'Laptop Alert'
+                                        break
+                            else:
+                                last_alert_laptop = 'Laptop Alert'
+                                alarm_on_laptop = False
                         else:
                             print('Magic not start yet')
                     else:
