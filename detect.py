@@ -220,6 +220,7 @@ def detect(opt):
                     class_pc_laptop = -1
                     #
                     # draw boxes for visualization
+                    t6 = time_sync()
                     if len(outputs) > 0:
                         for j, (output, conf) in enumerate(zip(outputs, confs)):
                             bboxes = output[0:4]
@@ -377,7 +378,8 @@ def detect(opt):
                                 print('Magic not start yet')
                         else:
                             print('Only Tracking :)')
-                    LOGGER.info(f'{s}Done. YOLO:({t3 - t2:.3f}s), DeepSort:({t5 - t4:.3f}s)')
+                    t7 = time_sync()
+                    LOGGER.info(f'{s}Done. YOLO:({t3 - t2:.3f}s), DeepSort:({t5 - t4:.3f}s), Magic:({t7 - t6:.3f}s)')
                 else:
                     LOGGER.info(f'{s}Done. YOLO:({t3 - t2:.3f}s)')
                     if show_vid:
