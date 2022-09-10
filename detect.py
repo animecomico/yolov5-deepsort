@@ -293,21 +293,30 @@ def detect(opt):
                             enable_client_bank = False
                         if enable_client_restaurant:
                             print('Client Restaurant Started...')
-                            tree = KDTree(np_mo)
-                            nearest_dist, nearest_ind = tree.query(np_c, k=2)
-                            near_id = nearest_ind[:, 0]
-                            near_dist = nearest_dist[:, 0]
+                            if not np_mo is None:
+                                tree = KDTree(np_mo)
+                                num_mo = np_mo.shape[0]
+                                if num_mo == 1:
+                                    kdim = 1
+                                else:
+                                    kdim = 2
+                                nearest_dist, nearest_ind = tree.query(np_c, k=kdim)
+                                near_id = nearest_ind[:, 0]
+                                near_dist = nearest_dist[:, 0]
 
-                            # print(near_dist)  # drop id; assumes sorted -> see args!
-                            # print(near_id)  # drop id
-                            # print(id_client)
-                            # print(id_mo)
-                            num_c = len(id_client)
-                            for i in range(0, num_c):
-                                client_id = id_client[i]
-                                nearid = near_id[i]
-                                id_mos = id_mo[nearid]
-                                print('Client track id {} on MO track id {}'.format(client_id, id_mos))
+                                # print(near_dist)  # drop id; assumes sorted -> see args!
+                                # print(near_id)  # drop id
+                                # print(id_client)
+                                # print(id_mo)
+                                num_c = len(id_client)
+                                for i in range(0, num_c):
+                                    client_id = id_client[i]
+                                    nearid = near_id[i]
+                                    id_mos = id_mo[nearid]
+                                    print('Client track id {} on MO track id {}'.format(client_id, id_mos))
+                                np_mo = None
+                            else:
+                                print('Not found any MO class')
                         elif enable_client_bank:
                             if not last_alert is None:
                                 if show_vid:
