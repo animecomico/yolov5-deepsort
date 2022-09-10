@@ -140,6 +140,21 @@ class Annotator:
                     txt_color,
                     thickness=2, lineType=cv2.LINE_AA)
 
+    def put_roi_table_alarm(self, alarm_roi = False, color=(0, 120, 255),bbox=[0,0,0,0]):
+        if alarm_roi:
+            overlay = self.im.copy()
+
+            x, y, w, h = bbox[0], bbox[1], bbox[2]-bbox[0], bbox[3]-bbox[1]  # Rectangle parameters
+            cv2.rectangle(overlay, (x, y), (x + w, y + h), color, -1)  # A filled rectangle
+
+            alpha = 0.4  # Transparency factor.
+
+            # Following line overlays transparent rectangle over the image
+            self.im = cv2.addWeighted(overlay, alpha, self.im, 1 - alpha, 0)
+            cv2.putText(self.im, 'ALARM', (x+10, y+h-5), 5, self.lw / 2,
+                        (0,255,0),
+                        thickness=1, lineType=cv2.LINE_AA)
+
     def put_alarm2(self, alarm, alarm_on = False,color=(0, 128, 0), txt_color=(255, 255, 255)):
         tf = max(self.lw - 1, 1)
         if alarm_on:

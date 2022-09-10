@@ -96,6 +96,7 @@ def detect(opt):
     cont_detect_c = 0
     last_alert = None
     last_alert_laptop = None
+    last_alert_mo = None
     time1 = datetime.now()
     time_client = dict()
 
@@ -151,6 +152,10 @@ def detect(opt):
             ymin_r = 250
             xmax_r = 700
             ymax_r = 800
+            xmin_r = 20
+            ymin_r = 20
+            xmax_r = 7000
+            ymax_r = 8000
             # Required reescale
             det_temp[:, :4] = scale_coords(img.shape[2:], det_temp[:, :4], im0.shape).round()
             xywhs3 = xyxy2xywh(det_temp[:, 0:4])
@@ -208,6 +213,7 @@ def detect(opt):
 
                     clients_pos = []
                     mo_pos = []
+                    mo_bbox = []
                     mv_pos = []
                     id_client = []
                     id_mo = []
@@ -245,7 +251,7 @@ def detect(opt):
                                 class_mv = 1
                                 class_pc_laptop = -1
                             if c == class_client:
-                                print(id, centroid)
+                                #print(id, centroid)
                                 clients_pos.append(centroid)
                                 id_client.append(id)
                                 if id in time_client:
@@ -253,10 +259,11 @@ def detect(opt):
                                 else:
                                     time_client[id] = 0
 
-                                print(time_client, contframe)
+                                #print(time_client, contframe)
                             elif c == class_mo:
                                 # For now ignore this
                                 mo_pos.append(centroid)
+                                mo_bbox.append(bboxes)
                                 id_mo.append(id)
                             elif c == class_mv:
                                 mv_pos.append(centroid)
@@ -273,6 +280,7 @@ def detect(opt):
                             enable_client_bank = False
                             try:
                                 np_mo = np.vstack(mo_pos)
+                                np_mo_bbox = np.vstack(mo_bbox)
                             except Exception as ero:
                                 print('Not Found any class {}'.format(class_mo))
                         elif environment == 'ATM':
@@ -284,6 +292,7 @@ def detect(opt):
                             enable_client_bank = False
                             try:
                                 np_mo = np.vstack(mo_pos)
+                                np_mo_bbox = np.vstack(mo_bbox)
                             except Exception as ero:
                                 print('Not Found any class {}'.format(class_mo))
                         try:
@@ -309,11 +318,22 @@ def detect(opt):
                                 # print(id_client)
                                 # print(id_mo)
                                 num_c = len(id_client)
+                                mo_c = []
                                 for i in range(0, num_c):
                                     client_id = id_client[i]
                                     nearid = near_id[i]
                                     id_mos = id_mo[nearid]
+                                    mo_c.append(id_mos)
                                     print('Client track id {} on MO track id {}'.format(client_id, id_mos))
+                                for id_mo1 in id_mo:
+                                    if id_mo1 not in mo_c:
+                                        print('MESA DESOCUPADA', id_mo1,id_mo,np_mo_bbox[np.where(id_mo == id_mo1)])
+                                        last_alert_mo = 'Table Alert'
+                                        alarm_on_mo = True
+                                        if not last_alert_mo is None:
+                                            if show_vid:
+                                                annotator.put_roi_table_alarm(alarm_roi=True,bbox=np_mo_bbox[np.where(id_mo == id_mo1)][0])
+                                                #annotator.put_alarm2(alarm=last_alert_mo, alarm_on=alarm_on_mo)
                                 np_mo = None
                             else:
                                 print('Not found any MO class')
@@ -328,8 +348,6 @@ def detect(opt):
                             back_prog = 4
                             time_stamp_c = datetime.now()
                             cont_detect_c = cont_detect_c + 1
-
-
 
                             df_client2 = pd.DataFrame(columns=['timestamp', 'client', 'frame'])
                             for idc in id_client:
@@ -396,7 +414,7 @@ def detect(opt):
                         confs = confs.cpu().cpu().numpy().tolist()
                         classes = clss.cpu().cpu().numpy().astype(int).tolist()
                         for j, (bboxes, conf, clase) in enumerate(zip(bboxes_f, confs, classes)):
-                            print(j, bboxes, conf, clase)
+                            #print(j, bboxes, conf, clase)
                             c = clase
                             label = f'{names[c]} {conf:.2f}'
                             annotator.box_label(bboxes, label, color=colors(c, True))
@@ -408,7 +426,7 @@ def detect(opt):
                 # Stream results
                 im0 = annotator.result()
                 if show_vid:
-                    cv2.imshow(str(p), im0)
+                    cv2.imshow(str(p), cv2.resize(im0,(852,480), interpolation = cv2.INTER_AREA))
                     if cv2.waitKey(1) == ord('q'):  # q to quit
                         raise StopIteration
 
