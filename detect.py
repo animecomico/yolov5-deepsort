@@ -93,7 +93,9 @@ def detect(opt):
     contframe = 0
     df_client = pd.DataFrame(columns=['timestamp', 'client', 'frame'])
     df_laptop = pd.DataFrame(columns=['timestamp', 'laptop', 'frame'])
+    df_mo = pd.DataFrame(columns=['timestamp', 'mo', 'frame'])
     cont_detect_c = 0
+    cont_detect_mo = 0
     last_alert = None
     last_alert_laptop = None
     last_alert_mo = None
@@ -152,8 +154,8 @@ def detect(opt):
             ymin_r = 250
             xmax_r = 700
             ymax_r = 800
-            xmin_r = 20
-            ymin_r = 20
+            xmin_r = 2
+            ymin_r = 2
             xmax_r = 7000
             ymax_r = 8000
             # Required reescale
@@ -182,12 +184,14 @@ def detect(opt):
                     for cent in range(n_det):
 
                         dist = distance.euclidean(centroid[cent], centroid[n_det])
-                        if dist < 130 and (det[n_det, -1] + det[cent, -1] == class_filter):
+                        if dist < 100 and (det[n_det, -1] + det[cent, -1] == class_filter):
                             if det[n_det, -1] == class_filter:
                                 det2[n_det] = 10
                             else:
                                 det2[cent] = 10
-
+                        # Distance filter to mv
+                        if dist < 60 and det[n_det, -1] == 1 and det[cent, -1] == 1:
+                            det2[n_det] = 10
             det = det2[det2[:, -1] != 10]
 
             if det is not None and len(det):
@@ -283,6 +287,7 @@ def detect(opt):
                                 np_mo_bbox = np.vstack(mo_bbox)
                             except Exception as ero:
                                 print('Not Found any class {}'.format(class_mo))
+                                np_mo = None
                         elif environment == 'ATM':
                             enable_client_restaurant = False
                             enable_client_bank = True
@@ -298,7 +303,7 @@ def detect(opt):
                         try:
                             np_c = np.vstack(clients_pos)
                         except Exception as loi:
-                            enable_client_restaurant = False
+                            #enable_client_restaurant = False
                             enable_client_bank = False
                         if enable_client_restaurant:
                             print('Client Restaurant Started...')
@@ -325,14 +330,43 @@ def detect(opt):
                                     id_mos = id_mo[nearid]
                                     mo_c.append(id_mos)
                                     print('Client track id {} on MO track id {}'.format(client_id, id_mos))
+
+                                ##### MEASUREMENT OF MO STAY TIME
+                                print('MO stay time started...')
+                                back_prog = 4
+                                time_stamp_mo = datetime.now()
+                                cont_detect_mo = cont_detect_mo + 1
+
                                 for id_mo1 in id_mo:
                                     if id_mo1 not in mo_c:
+                                        df_mo = df_mo.append(
+                                           {'client': id_mo1, 'frame': contframe, 'timestamp': time_stamp_mo},ignore_index=True)
+                                        if cont_detect_mo >= back_prog:
+                                            print('Start Magic')
+                                            #     Check mo number
+                                            num_mo = df_mo[df_mo.duplicated('timestamp', keep=False)]
+                                            keys = num_mo.index
+                                            for i in keys:
+                                                time_st = num_mo.loc[i].at['timestamp']
+                                                delta_t = time_stamp_mo - time_st
+                                                days, seconds = delta_t.days, delta_t.seconds
+                                                if days == 0 and (2 <= seconds <= 10):
+                                                    df_mo = None
+                                                    df_mo = pd.DataFrame(columns=['timestamp', 'client', 'frame'])
+                                                    cont_detect_mo = 0
+                                                    print('Alert mo')
+                                                    last_alert_mo = 'Table Alert'
+                                                    alarm_on_mo = True
+                                                    print('MESA DESOCUPADA', id_mo1, id_mo,
+                                                          np_mo_bbox[np.where(id_mo == id_mo1)])
+                                                    break
+
                                         print('MESA DESOCUPADA', id_mo1,id_mo,np_mo_bbox[np.where(id_mo == id_mo1)])
-                                        last_alert_mo = 'Table Alert'
                                         alarm_on_mo = True
+                                        last_alert_mo = 'Table Alert'
                                         if not last_alert_mo is None:
                                             if show_vid:
-                                                annotator.put_roi_table_alarm(alarm_roi=True,bbox=np_mo_bbox[np.where(id_mo == id_mo1)][0])
+                                                annotator.put_roi_table_alarm(alarm_roi=alarm_on_mo,bbox=np_mo_bbox[np.where(id_mo == id_mo1)][0])
                                                 #annotator.put_alarm2(alarm=last_alert_mo, alarm_on=alarm_on_mo)
                                 np_mo = None
                             else:
