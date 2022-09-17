@@ -69,7 +69,7 @@ class Detect(nn.Module):
         return grid, anchor_grid
 
 
-class Model(nn.Module):
+class DetectionModel(nn.Module):
     def __init__(self, cfg='yolov5s.yaml', ch=3, nc=None, anchors=None):  # model, input channels, number of classes
         super().__init__()
         if isinstance(cfg, dict):
@@ -293,7 +293,7 @@ if __name__ == '__main__':
     device = select_device(opt.device)
 
     # Create model
-    model = Model(opt.cfg).to(device)
+    model = DetectionModel(opt.cfg).to(device)
     model.train()
 
     # Profile
@@ -305,6 +305,6 @@ if __name__ == '__main__':
     if opt.test:
         for cfg in Path(ROOT / 'models').rglob('yolo*.yaml'):
             try:
-                _ = Model(cfg)
+                _ = DetectionModel(cfg)
             except Exception as e:
                 print(f'Error in {cfg}: {e}')
